@@ -25,6 +25,10 @@ MCP_DEBUG = os.getenv("MCP_DEBUG", "false").lower() == "true"
 # API Keys
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
+# MDB-Bayesian Configuration
+# Set to "bayesian" for probabilistic reasoning, "deterministic" for original Medster
+REASONING_MODE = os.getenv("REASONING_MODE", "deterministic").lower()
+
 
 def get_absolute_path(relative_path: str) -> Path:
     """

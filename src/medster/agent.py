@@ -4,12 +4,13 @@ from langchain_core.messages import AIMessage
 
 from medster.model import call_llm
 from medster.prompts import (
-    ACTION_SYSTEM_PROMPT,
-    get_answer_system_prompt,
+    ACTIVE_ACTION_PROMPT,
+    ACTIVE_VALIDATION_PROMPT,
+    ACTIVE_ANSWER_PROMPT,
     PLANNING_SYSTEM_PROMPT,
     get_tool_args_system_prompt,
-    VALIDATION_SYSTEM_PROMPT,
     META_VALIDATION_SYSTEM_PROMPT,
+    ACTIVE_PROMPTS,  # For mode information
 )
 from medster.schemas import Answer, IsDone, OptimizedToolArgs, Task, TaskList
 from medster.tools import TOOLS
@@ -72,7 +73,7 @@ class Agent:
         """
 
         try:
-            ai_message = call_llm(prompt, system_prompt=ACTION_SYSTEM_PROMPT, tools=TOOLS)
+            ai_message = call_llm(prompt, system_prompt=ACTIVE_ACTION_PROMPT, tools=TOOLS)
             return ai_message
         except Exception as e:
             self.logger._log(f"ask_for_actions failed: {e}")
@@ -89,7 +90,7 @@ class Agent:
         Is the task done?
         """
         try:
-            resp = call_llm(prompt, system_prompt=VALIDATION_SYSTEM_PROMPT, output_schema=IsDone)
+            resp = call_llm(prompt, system_prompt=ACTIVE_VALIDATION_PROMPT, output_schema=IsDone)
             return resp.done
         except:
             return False
@@ -311,5 +312,5 @@ Task Plan:
         Include specific values, reference ranges, trends, and clinical implications.
         Flag any critical findings that require immediate attention.
         """
-        answer_obj = call_llm(answer_prompt, system_prompt=get_answer_system_prompt(), output_schema=Answer)
+        answer_obj = call_llm(answer_prompt, system_prompt=ACTIVE_ANSWER_PROMPT, output_schema=Answer)
         return answer_obj.answer

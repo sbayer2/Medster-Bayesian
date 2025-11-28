@@ -1,4 +1,5 @@
 from datetime import datetime
+from .config import REASONING_MODE
 
 
 DEFAULT_SYSTEM_PROMPT = """You are Medster, an autonomous clinical case analysis agent with multimodal capabilities.
@@ -414,3 +415,55 @@ def get_tool_args_system_prompt() -> str:
 def get_answer_system_prompt() -> str:
     """Returns the answer system prompt with the current date."""
     return ANSWER_SYSTEM_PROMPT.format(current_date=get_current_date())
+
+
+#
+# ==================================================================
+# BAYESIAN MODE TOGGLE
+# ==================================================================
+#
+# MDB supports two reasoning modes:
+# - "deterministic": Original Medster prompts (default)
+# - "bayesian": Probabilistic reasoning with uncertainty quantification
+#
+# Set REASONING_MODE=bayesian in .env to enable Bayesian mode
+#
+
+def get_active_prompts():
+    """
+    Returns the active prompt set based on REASONING_MODE configuration.
+
+    Returns:
+        dict: Dictionary containing active validation, action, and answer prompts
+    """
+    if REASONING_MODE == "bayesian":
+        from .prompts_bayesian import (
+            BAYESIAN_VALIDATION_SYSTEM_PROMPT,
+            BAYESIAN_ACTION_SYSTEM_PROMPT,
+            get_bayesian_answer_system_prompt,
+        )
+        return {
+            "mode": "bayesian",
+            "validation": BAYESIAN_VALIDATION_SYSTEM_PROMPT,
+            "action": BAYESIAN_ACTION_SYSTEM_PROMPT,
+            "answer": get_bayesian_answer_system_prompt(),
+            "description": "Bayesian probabilistic reasoning with uncertainty quantification"
+        }
+    else:
+        # Default: deterministic mode (original Medster)
+        return {
+            "mode": "deterministic",
+            "validation": VALIDATION_SYSTEM_PROMPT,
+            "action": ACTION_SYSTEM_PROMPT,
+            "answer": get_answer_system_prompt(),
+            "description": "Deterministic clinical analysis (original Medster)"
+        }
+
+
+# Active prompts based on configuration
+ACTIVE_PROMPTS = get_active_prompts()
+
+# Export active prompts for use in agent
+ACTIVE_VALIDATION_PROMPT = ACTIVE_PROMPTS["validation"]
+ACTIVE_ACTION_PROMPT = ACTIVE_PROMPTS["action"]
+ACTIVE_ANSWER_PROMPT = ACTIVE_PROMPTS["answer"]
