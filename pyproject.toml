@@ -1,6 +1,6 @@
 [project]
 name = "medster"
-version = "0.1.0-bayesian"
+version = "0.2.0"  # MDB-Bayesian fork
 description = "Medster-Bayesian-Diagnostics - Experimental Bayesian Reasoning for Clinical AI"
 readme = "README.md"
 requires-python = ">=3.10"
