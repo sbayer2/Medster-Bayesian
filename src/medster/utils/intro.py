@@ -18,15 +18,15 @@ def print_intro():
 
     # Determine subtitle based on mode
     mode = ACTIVE_PROMPTS["mode"]
+    mode_desc = ACTIVE_PROMPTS.get("description", "")
+
     if mode == "bayesian":
         subtitle = f"{Colors.DIM}Autonomous Clinical Case Analysis Agent {Colors.CYAN}[BAYESIAN MODE]{Colors.ENDC}"
-        mode_desc = ACTIVE_PROMPTS["description"]
     else:
         subtitle = f"{Colors.DIM}Autonomous Clinical Case Analysis Agent{Colors.ENDC}"
-        mode_desc = None
 
-    # Build info section with mode indicator
-    mode_line = f"{Colors.DIM}  Reasoning Mode: {Colors.CYAN}{mode.upper()}{Colors.DIM} - {mode_desc}{Colors.ENDC}" if mode_desc else ""
+    # Build info section with mode indicator (always show mode)
+    mode_line = f"{Colors.DIM}  Reasoning Mode: {Colors.CYAN}{mode.upper()}{Colors.DIM} - {mode_desc}{Colors.ENDC}"
 
     info = f"""
 {Colors.CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.ENDC}
