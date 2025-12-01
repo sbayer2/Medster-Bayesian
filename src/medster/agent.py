@@ -186,6 +186,16 @@ class Agent:
 
         except Exception as e:
             self.logger._log(f"Validation failed: {e}")
+
+            # If return_validation_details requested, return ValidationResult object
+            if return_validation_details:
+                return ValidationResult(
+                    done=False,
+                    confidence=0.0,
+                    data_completeness=0.0,
+                    uncertainty_factors=["Validation failed due to error"],
+                    refinement_suggestion=None
+                )
             return False
 
     # ---------- ask LLM if main goal is achieved (with confidence-based early stopping) ----------
@@ -280,6 +290,16 @@ Task Plan:
 
         except Exception as e:
             self.logger._log(f"Meta-validation failed: {e}")
+
+            # If Bayesian mode with early stopping, return dict structure
+            if self.bayesian_mode and self.enable_confidence_early_stopping:
+                return {
+                    "achieved": False,
+                    "confidence": 0.0,
+                    "remaining_uncertainty": 5.0,
+                    "should_stop_early": False,
+                    "missing_information": ["Meta-validation failed due to error"]
+                }
             return False
 
     # ---------- optimize tool arguments ----------

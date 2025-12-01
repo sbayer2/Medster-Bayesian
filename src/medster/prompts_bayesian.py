@@ -287,16 +287,16 @@ MCP Server Task Validation:
 Example outputs:
 
 High confidence completion:
-{
+{{
   "done": true,
   "confidence": 0.95,
   "data_completeness": 1.0,
   "uncertainty_factors": [],
   "refinement_suggestion": null
-}
+}}
 
 Moderate confidence completion:
-{
+{{
   "done": true,
   "confidence": 0.75,
   "data_completeness": 0.80,
@@ -305,10 +305,10 @@ Moderate confidence completion:
     "ECG report available but raw waveform image not found"
   ],
   "refinement_suggestion": null
-}
+}}
 
 Low confidence, incomplete (SHOULD REFINE):
-{
+{{
   "done": false,
   "confidence": 0.40,
   "data_completeness": 0.30,
@@ -318,7 +318,7 @@ Low confidence, incomplete (SHOULD REFINE):
     "Critical lab values (K+, Na+) missing from CMP"
   ],
   "refinement_suggestion": "Use get_patient_labs with date_range parameter to retrieve most recent CMP including K+, Na+, and request vital_signs with time_series=true for trend analysis"
-}
+}}
 """
 
 
@@ -362,15 +362,15 @@ TASK COMPLETION CHECK:
 Example outputs:
 
 High confidence - STOP EARLY:
-{
+{{
   "achieved": true,
   "confidence": 0.95,
   "remaining_uncertainty": 0.5,
   "missing_information": []
-}
+}}
 
 Moderate confidence - CONTINUE if tasks remain:
-{
+{{
   "achieved": true,
   "confidence": 0.75,
   "remaining_uncertainty": 1.8,
@@ -378,10 +378,10 @@ Moderate confidence - CONTINUE if tasks remain:
     "ECG waveform analysis would confirm rhythm interpretation",
     "Recent troponin trend (last 6h) not available"
   ]
-}
+}}
 
 Low confidence - MUST CONTINUE:
-{
+{{
   "achieved": false,
   "confidence": 0.45,
   "remaining_uncertainty": 3.5,
@@ -390,7 +390,7 @@ Low confidence - MUST CONTINUE:
     "No imaging data retrieved despite stroke diagnosis",
     "Medication list incomplete - no anticoagulation status"
   ]
-}
+}}
 """
 
 
