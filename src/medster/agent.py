@@ -516,9 +516,11 @@ Task Plan:
                         break
 
                     # Check if we should attempt refinement
+                    # Skip refinement if data_completeness = 0.0 (data truly doesn't exist)
                     elif (validation_result.confidence < self.refinement_confidence_threshold and
                           per_task_steps < self.max_refinement_attempts and
-                          validation_result.refinement_suggestion):
+                          validation_result.refinement_suggestion and
+                          validation_result.data_completeness > 0.0):
 
                         self.logger._log(
                             f"🔄 REFINEMENT: Low confidence ({validation_result.confidence:.2f}), "
@@ -531,11 +533,15 @@ Task Plan:
                         continue
 
                     else:
-                        # Confidence below threshold but no more attempts or no suggestion
+                        # Confidence below threshold but no more attempts, no suggestion, or no data
                         if per_task_steps >= self.max_refinement_attempts:
                             self.logger._log(
                                 f"⚠️  Max refinement attempts reached, accepting result "
                                 f"with confidence {validation_result.confidence:.2f}"
+                            )
+                        elif validation_result.data_completeness == 0.0:
+                            self.logger._log(
+                                f"⏭️  No data available (completeness 0.0), skipping refinement"
                             )
                         task.done = True
                         self.logger.log_task_done(task.description)
