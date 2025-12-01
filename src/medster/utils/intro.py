@@ -30,8 +30,12 @@ def print_intro():
     provider = os.getenv("LLM_PROVIDER", "claude").lower()
     if provider == "openai":
         llm_model = os.getenv("LLM_MODEL", "gpt-5.1")
-        reasoning_effort = os.getenv("REASONING_EFFORT", "none")
-        llm_info = f"{llm_model.upper()} (reasoning: {reasoning_effort})"
+        # Only show reasoning effort for GPT-5.x models (not GPT-4.x)
+        if llm_model in ["gpt-5.1", "gpt-5"]:
+            reasoning_effort = os.getenv("REASONING_EFFORT", "none")
+            llm_info = f"{llm_model.upper()} (reasoning: {reasoning_effort})"
+        else:
+            llm_info = llm_model.upper()
     else:
         llm_model = os.getenv("LLM_MODEL", "claude-sonnet-4.5")
         llm_info = "Claude Sonnet 4.5"
