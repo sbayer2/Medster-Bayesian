@@ -1,18 +1,29 @@
 from typing import List
+import json
+from pathlib import Path
+from datetime import datetime
 
 from langchain_core.messages import AIMessage
 
 from medster.model import call_llm
 from medster.prompts import (
+    ACTIVE_PLANNING_PROMPT,
     ACTIVE_ACTION_PROMPT,
     ACTIVE_VALIDATION_PROMPT,
     ACTIVE_ANSWER_PROMPT,
-    PLANNING_SYSTEM_PROMPT,
     get_tool_args_system_prompt,
     META_VALIDATION_SYSTEM_PROMPT,
     ACTIVE_PROMPTS,  # For mode information
 )
-from medster.schemas import Answer, IsDone, OptimizedToolArgs, Task, TaskList
+from medster.schemas import (
+    Answer,
+    IsDone,
+    ValidationResult,
+    BayesianMetaValidation,
+    OptimizedToolArgs,
+    Task,
+    TaskList
+)
 from medster.tools import TOOLS
 from medster.utils.logger import Logger
 from medster.utils.ui import show_progress
@@ -24,10 +35,44 @@ from medster.utils.context_manager import (
 
 
 class Agent:
-    def __init__(self, max_steps: int = 20, max_steps_per_task: int = 5):
+    def __init__(
+        self,
+        max_steps: int = 20,
+        max_steps_per_task: int = 5,
+        persist_outputs: bool = False,
+        output_dir: str = "./medster_outputs",
+        enable_iterative_refinement: bool = True,
+        refinement_confidence_threshold: float = 0.7,
+        max_refinement_attempts: int = 2,
+        enable_confidence_early_stopping: bool = True,
+        early_stop_confidence_threshold: float = 0.90,
+        early_stop_uncertainty_threshold: float = 1.0
+    ):
         self.logger = Logger()
         self.max_steps = max_steps            # global safety cap
         self.max_steps_per_task = max_steps_per_task
+
+        # Task output persistence (Dexter-inspired feature)
+        self.persist_outputs = persist_outputs
+        self.output_dir = Path(output_dir)
+        if self.persist_outputs:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+            self.logger._log(f"Task outputs will be saved to: {self.output_dir}")
+
+        # Iterative refinement settings (Dexter-inspired feature)
+        self.enable_iterative_refinement = enable_iterative_refinement
+        self.refinement_confidence_threshold = refinement_confidence_threshold
+        self.max_refinement_attempts = max_refinement_attempts
+
+        # Confidence-based early stopping (Bayesian enhancement)
+        self.enable_confidence_early_stopping = enable_confidence_early_stopping
+        self.early_stop_confidence_threshold = early_stop_confidence_threshold
+        self.early_stop_uncertainty_threshold = early_stop_uncertainty_threshold
+
+        # Check if Bayesian mode is active
+        self.bayesian_mode = ACTIVE_PROMPTS.get("mode") == "bayesian"
+        if self.bayesian_mode and (enable_iterative_refinement or enable_confidence_early_stopping):
+            self.logger._log(f"Bayesian mode active with enhancements: refinement={enable_iterative_refinement}, early_stop={enable_confidence_early_stopping}")
 
     # ---------- task planning ----------
     @show_progress("Planning clinical analysis...", "Tasks planned")
@@ -38,7 +83,7 @@ class Agent:
         Create a list of tasks to be completed.
         Example: {{"tasks": [{{"id": 1, "description": "some task", "done": false}}]}}
         """
-        system_prompt = PLANNING_SYSTEM_PROMPT.format(tools=tool_descriptions)
+        system_prompt = ACTIVE_PLANNING_PROMPT.format(tools=tool_descriptions)
         try:
             response = call_llm(prompt, system_prompt=system_prompt, output_schema=TaskList)
             tasks = response.tasks
@@ -80,25 +125,88 @@ class Agent:
             # Return special marker to indicate failure (not completion)
             return AIMessage(content="AGENT_ERROR: " + str(e))
 
-    # ---------- ask LLM if task is done ----------
+    # ---------- ask LLM if task is done (with optional refinement) ----------
     @show_progress("Checking if task is complete...", "")
-    def ask_if_done(self, task_desc: str, recent_results: str) -> bool:
+    def ask_if_done(
+        self,
+        task_desc: str,
+        recent_results: str,
+        attempt: int = 0,
+        return_validation_details: bool = False
+    ):
+        """
+        Validate task completion with optional iterative refinement support.
+
+        Args:
+            task_desc: Description of the task being validated
+            recent_results: Tool outputs from the current task
+            attempt: Current refinement attempt (0 = first attempt)
+            return_validation_details: If True, return ValidationResult with confidence
+
+        Returns:
+            bool or ValidationResult: Task completion status (and details if Bayesian mode)
+        """
         prompt = f"""
         We were trying to complete the task: "{task_desc}".
         Here is a history of tool outputs from the session so far: {recent_results}
 
         Is the task done?
         """
+
         try:
-            resp = call_llm(prompt, system_prompt=ACTIVE_VALIDATION_PROMPT, output_schema=IsDone)
-            return resp.done
-        except:
+            # Use Bayesian validation if in Bayesian mode and iterative refinement enabled
+            if self.bayesian_mode and (self.enable_iterative_refinement or return_validation_details):
+                resp = call_llm(
+                    prompt,
+                    system_prompt=ACTIVE_VALIDATION_PROMPT,
+                    output_schema=ValidationResult
+                )
+
+                # Log confidence for monitoring
+                self.logger._log(
+                    f"Validation: done={resp.done}, confidence={resp.confidence:.2f}, "
+                    f"completeness={resp.data_completeness:.2f}"
+                )
+
+                # Return full validation result if requested
+                if return_validation_details:
+                    return resp
+
+                # Otherwise, return boolean (backward compatible)
+                return resp.done
+
+            else:
+                # Deterministic mode: simple boolean validation
+                resp = call_llm(
+                    prompt,
+                    system_prompt=ACTIVE_VALIDATION_PROMPT,
+                    output_schema=IsDone
+                )
+                return resp.done
+
+        except Exception as e:
+            self.logger._log(f"Validation failed: {e}")
             return False
 
-    # ---------- ask LLM if main goal is achieved ----------
+    # ---------- ask LLM if main goal is achieved (with confidence-based early stopping) ----------
     @show_progress("Checking if analysis is complete...", "")
-    def is_goal_achieved(self, query: str, task_outputs: list, tasks: list = None) -> bool:
-        """Check if the overall goal is achieved based on all session outputs and task completion."""
+    def is_goal_achieved(
+        self,
+        query: str,
+        task_outputs: list,
+        tasks: list = None
+    ):
+        """
+        Check if the overall goal is achieved with optional confidence-based early stopping.
+
+        Args:
+            query: Original clinical query
+            task_outputs: All accumulated tool outputs
+            tasks: List of planned tasks with completion status
+
+        Returns:
+            bool or dict: Task completion status (dict with confidence if Bayesian + early stopping enabled)
+        """
         all_results = "\n\n".join(task_outputs)
 
         # Format task plan for meta-validator
@@ -121,9 +229,55 @@ Task Plan:
 
         Based on the task plan and data above, is the original clinical query sufficiently answered?
         """
+
         try:
-            resp = call_llm(prompt, system_prompt=META_VALIDATION_SYSTEM_PROMPT, output_schema=IsDone)
-            return resp.done
+            # Use Bayesian meta-validation if enabled
+            if self.bayesian_mode and self.enable_confidence_early_stopping:
+                # Get meta-validation prompt from ACTIVE_PROMPTS
+                meta_validation_prompt = ACTIVE_PROMPTS.get("meta_validation", META_VALIDATION_SYSTEM_PROMPT)
+
+                resp = call_llm(
+                    prompt,
+                    system_prompt=meta_validation_prompt,
+                    output_schema=BayesianMetaValidation
+                )
+
+                # Log confidence metrics
+                self.logger._log(
+                    f"Meta-validation: achieved={resp.achieved}, confidence={resp.confidence:.2f}, "
+                    f"remaining_uncertainty={resp.remaining_uncertainty:.2f} bits"
+                )
+
+                # Check early stopping criteria
+                should_stop_early = (
+                    resp.confidence >= self.early_stop_confidence_threshold and
+                    resp.remaining_uncertainty <= self.early_stop_uncertainty_threshold
+                )
+
+                if should_stop_early and resp.achieved:
+                    self.logger._log(
+                        f"🎯 EARLY STOP: High confidence ({resp.confidence:.2f}) + "
+                        f"low uncertainty ({resp.remaining_uncertainty:.2f} bits) achieved!"
+                    )
+
+                # Return dict with details for caller to handle
+                return {
+                    "achieved": resp.achieved,
+                    "confidence": resp.confidence,
+                    "remaining_uncertainty": resp.remaining_uncertainty,
+                    "should_stop_early": should_stop_early,
+                    "missing_information": resp.missing_information
+                }
+
+            else:
+                # Deterministic mode: simple boolean meta-validation
+                resp = call_llm(
+                    prompt,
+                    system_prompt=META_VALIDATION_SYSTEM_PROMPT,
+                    output_schema=IsDone
+                )
+                return resp.done
+
         except Exception as e:
             self.logger._log(f"Meta-validation failed: {e}")
             return False
@@ -165,6 +319,38 @@ Task Plan:
         def run_tool():
             return tool.run(inp_args)
         return run_tool()
+
+    # ---------- task output persistence ----------
+    def _save_task_output(self, task_id: int, task_desc: str, outputs: list, metadata: dict = None):
+        """
+        Save task outputs to file system (Dexter-inspired feature).
+
+        Args:
+            task_id: Task ID number
+            task_desc: Task description
+            outputs: List of tool outputs for this task
+            metadata: Optional metadata dictionary
+        """
+        if not self.persist_outputs:
+            return
+
+        try:
+            timestamp = datetime.now().isoformat()
+            output_data = {
+                "task_id": task_id,
+                "task_description": task_desc,
+                "timestamp": timestamp,
+                "outputs": outputs,
+                "metadata": metadata or {},
+                "reasoning_mode": ACTIVE_PROMPTS.get("mode", "deterministic")
+            }
+
+            output_file = self.output_dir / f"task_{task_id}_output.json"
+            output_file.write_text(json.dumps(output_data, indent=2))
+            self.logger._log(f"📁 Saved task {task_id} output to: {output_file}")
+
+        except Exception as e:
+            self.logger._log(f"Failed to save task output: {e}")
 
     # ---------- confirm action ----------
     def confirm_action(self, tool: str, input_str: str) -> bool:
@@ -283,14 +469,118 @@ Task Plan:
                     # Don't mark as done - the tool wasn't called
                     break
 
-                if self.ask_if_done(task.description, "\n".join(task_step_outputs)):
-                    task.done = True
-                    self.logger.log_task_done(task.description)
-                    break
+                # ITERATIVE REFINEMENT PATTERN (Dexter-inspired)
+                # Validate task with optional refinement based on confidence
+                if self.bayesian_mode and self.enable_iterative_refinement:
+                    validation_result = self.ask_if_done(
+                        task.description,
+                        "\n".join(task_step_outputs),
+                        attempt=per_task_steps,
+                        return_validation_details=True
+                    )
 
-            if task.done and self.is_goal_achieved(query, task_outputs, tasks):
-                self.logger._log("Clinical analysis complete. Generating summary.")
-                break
+                    if validation_result.done:
+                        task.done = True
+                        self.logger.log_task_done(task.description)
+                        # Save task output with confidence metadata
+                        self._save_task_output(
+                            task.id,
+                            task.description,
+                            task_step_outputs,
+                            metadata={
+                                "confidence": validation_result.confidence,
+                                "data_completeness": validation_result.data_completeness,
+                                "uncertainty_factors": validation_result.uncertainty_factors
+                            }
+                        )
+                        break
+
+                    # Check if we should attempt refinement
+                    elif (validation_result.confidence < self.refinement_confidence_threshold and
+                          per_task_steps < self.max_refinement_attempts and
+                          validation_result.refinement_suggestion):
+
+                        self.logger._log(
+                            f"🔄 REFINEMENT: Low confidence ({validation_result.confidence:.2f}), "
+                            f"attempting refinement (attempt {per_task_steps + 1}/{self.max_refinement_attempts})"
+                        )
+                        self.logger._log(f"Refinement suggestion: {validation_result.refinement_suggestion}")
+
+                        # Continue loop with refinement guidance - the agent will try again
+                        # with the refinement_suggestion context from ask_for_actions
+                        continue
+
+                    else:
+                        # Confidence below threshold but no more attempts or no suggestion
+                        if per_task_steps >= self.max_refinement_attempts:
+                            self.logger._log(
+                                f"⚠️  Max refinement attempts reached, accepting result "
+                                f"with confidence {validation_result.confidence:.2f}"
+                            )
+                        task.done = True
+                        self.logger.log_task_done(task.description)
+                        self._save_task_output(
+                            task.id,
+                            task.description,
+                            task_step_outputs,
+                            metadata={
+                                "confidence": validation_result.confidence,
+                                "data_completeness": validation_result.data_completeness,
+                                "uncertainty_factors": validation_result.uncertainty_factors,
+                                "refinement_attempts": per_task_steps
+                            }
+                        )
+                        break
+
+                else:
+                    # Deterministic mode or refinement disabled: simple boolean validation
+                    if self.ask_if_done(task.description, "\n".join(task_step_outputs)):
+                        task.done = True
+                        self.logger.log_task_done(task.description)
+                        # Save task output without confidence metadata
+                        self._save_task_output(
+                            task.id,
+                            task.description,
+                            task_step_outputs
+                        )
+                        break
+
+            # CONFIDENCE-BASED EARLY STOPPING (Bayesian enhancement)
+            # Check if overall goal is achieved after completing each task
+            if task.done:
+                goal_result = self.is_goal_achieved(query, task_outputs, tasks)
+
+                # Handle dict response (Bayesian mode with early stopping)
+                if isinstance(goal_result, dict):
+                    if goal_result["achieved"]:
+                        # Check if we should stop early due to high confidence
+                        if goal_result.get("should_stop_early", False):
+                            self.logger._log(
+                                f"🎯 EARLY STOP TRIGGERED: Confidence {goal_result['confidence']:.2f} >= "
+                                f"{self.early_stop_confidence_threshold}, "
+                                f"Uncertainty {goal_result['remaining_uncertainty']:.2f} bits <= "
+                                f"{self.early_stop_uncertainty_threshold} bits"
+                            )
+                            self.logger._log("Clinical analysis complete. Generating summary.")
+                            break
+                        else:
+                            # Goal achieved but not high enough confidence for early stop
+                            # Continue to next task if available
+                            self.logger._log(
+                                f"Goal achieved but continuing: Confidence {goal_result['confidence']:.2f} "
+                                f"< {self.early_stop_confidence_threshold} or "
+                                f"Uncertainty {goal_result['remaining_uncertainty']:.2f} bits "
+                                f"> {self.early_stop_uncertainty_threshold} bits"
+                            )
+                            if not any(not t.done for t in tasks):
+                                # No more tasks, finish
+                                self.logger._log("All tasks complete. Generating summary.")
+                                break
+
+                # Handle boolean response (deterministic mode)
+                elif goal_result:
+                    self.logger._log("Clinical analysis complete. Generating summary.")
+                    break
 
         answer = self._generate_answer(query, task_outputs)
         self.logger.log_summary(answer)

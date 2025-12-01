@@ -19,6 +19,23 @@ class IsDone(BaseModel):
     done: bool = Field(..., description="Whether the task is done or not.")
 
 
+class ValidationResult(BaseModel):
+    """Represents the validation result with confidence and refinement suggestions."""
+    done: bool = Field(..., description="Whether the task is completed.")
+    confidence: float = Field(..., description="Confidence score (0.0-1.0) in task completion.")
+    data_completeness: float = Field(..., description="Data completeness score (0.0-1.0).")
+    uncertainty_factors: List[str] = Field(default_factory=list, description="List of uncertainty factors or missing data.")
+    refinement_suggestion: Optional[str] = Field(None, description="Suggestion for improving results if confidence is low.")
+
+
+class BayesianMetaValidation(BaseModel):
+    """Represents Bayesian meta-validation with confidence and uncertainty quantification."""
+    achieved: bool = Field(..., description="Whether the overall clinical goal is achieved.")
+    confidence: float = Field(..., description="Confidence score (0.0-1.0) that the goal is achieved.")
+    remaining_uncertainty: float = Field(..., description="Remaining diagnostic uncertainty in bits.")
+    missing_information: List[str] = Field(default_factory=list, description="List of missing information that would improve confidence.")
+
+
 class Answer(BaseModel):
     """Represents an answer to the user's clinical query."""
     answer: str = Field(..., description="A comprehensive clinical analysis including relevant values, findings, temporal context, and clinical implications.")

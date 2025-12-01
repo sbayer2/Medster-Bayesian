@@ -57,3 +57,10 @@ mcp_debug.log
 
 # Reference repositories (acknowledged in README)
 dexter-reference/
+
+# Documentation - exclude all markdown files in docs/ except specific ones
+docs/*.md
+!docs/DEXTER_INSPIRED_ENHANCEMENTS.md
+
+# Medster outputs (task persistence feature)
+medster_outputs/

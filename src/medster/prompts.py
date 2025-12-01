@@ -434,17 +434,21 @@ def get_active_prompts():
     Returns the active prompt set based on REASONING_MODE configuration.
 
     Returns:
-        dict: Dictionary containing active validation, action, and answer prompts
+        dict: Dictionary containing active planning, validation, action, and answer prompts
     """
     if REASONING_MODE == "bayesian":
         from .prompts_bayesian import (
+            BAYESIAN_PLANNING_SYSTEM_PROMPT,
             BAYESIAN_VALIDATION_SYSTEM_PROMPT,
+            BAYESIAN_META_VALIDATION_SYSTEM_PROMPT,
             BAYESIAN_ACTION_SYSTEM_PROMPT,
             get_bayesian_answer_system_prompt,
         )
         return {
             "mode": "bayesian",
+            "planning": BAYESIAN_PLANNING_SYSTEM_PROMPT,
             "validation": BAYESIAN_VALIDATION_SYSTEM_PROMPT,
+            "meta_validation": BAYESIAN_META_VALIDATION_SYSTEM_PROMPT,
             "action": BAYESIAN_ACTION_SYSTEM_PROMPT,
             "answer": get_bayesian_answer_system_prompt(),
             "description": "Bayesian probabilistic reasoning with uncertainty quantification"
@@ -453,7 +457,9 @@ def get_active_prompts():
         # Default: deterministic mode (original Medster)
         return {
             "mode": "deterministic",
+            "planning": PLANNING_SYSTEM_PROMPT,
             "validation": VALIDATION_SYSTEM_PROMPT,
+            "meta_validation": META_VALIDATION_SYSTEM_PROMPT,
             "action": ACTION_SYSTEM_PROMPT,
             "answer": get_answer_system_prompt(),
             "description": "Deterministic clinical analysis (original Medster)"
@@ -464,6 +470,7 @@ def get_active_prompts():
 ACTIVE_PROMPTS = get_active_prompts()
 
 # Export active prompts for use in agent
+ACTIVE_PLANNING_PROMPT = ACTIVE_PROMPTS["planning"]
 ACTIVE_VALIDATION_PROMPT = ACTIVE_PROMPTS["validation"]
 ACTIVE_ACTION_PROMPT = ACTIVE_PROMPTS["action"]
 ACTIVE_ANSWER_PROMPT = ACTIVE_PROMPTS["answer"]

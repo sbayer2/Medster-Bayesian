@@ -466,132 +466,30 @@ All FHIR parsing happens in `tools/medical/api.py`:
 When using the Coherent Data Set:
 
 > Walonoski J, et al. The "Coherent Data Set": Combining Patient Data and Imaging in a Comprehensive, Synthetic Health Record. Electronics. 2022; 11(8):1199. https://doi.org/10.3390/electronics11081199
-- Should we proceed with this revised approach? It's much cleaner and fits
-  Medster's philosophy of dynamic code generation!
 
-> yes lets plan again and proceed with this revised approach, your insights 
-are really good for the tool management and token efficient primitives  ,  
-but dont forget the to explore the data structures in the database , up date
- the env for the data extraction 
+---
 
-⏺ Excellent! Let's create a comprehensive revised plan and then proceed with
-   implementation.
+## Session Documentation (Read on Demand)
 
-⏺ 📋 REVISED PLAN: Token-Efficient Vision Analysis via Primitives
+**Architecture & Analysis:**
+- `docs/DEXTER_VS_MDB_ARCHITECTURE.md` - Comparison with original DEXTER architecture
+- `docs/TOOL_ARCHITECTURE_ANALYSIS.md` - Tool sparsity principle and code generation
+- `docs/MEDSTER_MENTAL_MODEL.md` - RockStar manager analogy (excellent for explaining to others)
+- `docs/PLANNING_EVALUATION_ARCHITECTURE.md` - How planning actually works (one-shot, not algorithmic)
 
-  ---
-  Step 1: Explore Coherent Data Set Structure 🔍
+**Bayesian Mode Implementation:**
+- `docs/BAYESIAN_MODE_GUIDE.md` - Quick start guide for Bayesian mode
+- `docs/BAYESIAN_EFFICIENCY_ANALYSIS.md` - Deep dive into 2x efficiency gain sources
+- `docs/BAYESIAN_PLANNING_IMPLEMENTATION.md` - Planning prompt enhancement details
+- `docs/BAYESIAN_PROMPT_ANALYSIS.md` - Prompt comparison and optimization
+- `docs/BAYESIAN_TEST_PROMPTS.md` - Test cases for meta-cognitive optimization
+- `docs/BAYESIAN_TOGGLE_IMPLEMENTATION_SUMMARY.md` - Complete implementation summary
+- `docs/TOGGLE_USAGE_GUIDE.md` - Detailed usage instructions
 
-  Goal: Understand the actual file formats and naming conventions
+**Project History:**
+- `docs/MIGRATION_SUMMARY.md` - Medster → MDB fork details
+- `docs/README.md` - Original project README
+- `docs/MCP_INTEGRATION_SUCCESS.md` - MCP server integration details
+- `docs/MCP_DEBUGGING_SESSION_SUMMARY.md` - MCP debugging notes
 
-  Actions:
-  - Examine sample DICOM files (structure, pixel data location)
-  - Check for ECG images vs ECG data files
-  - Map patient IDs to imaging files
-  - Document file formats and sizes
-  - Check FHIR bundles for imaging references
-
-  Deliverable: Data structure documentation for implementation
-
-  ---
-  Step 2: Update Environment Configuration ⚙️
-
-  Goal: Make all multimodal data paths accessible
-
-  Actions:
-  - Update .env with multimodal paths
-  - Create src/medster/config.py for centralized path management
-  - Test path loading
-
-  Files Modified:
-  - .env
-  - src/medster/config.py (new)
-
-  ---
-  Step 3: Create Image Conversion Utilities 🖼️
-
-  Goal: Lightweight, token-efficient image converters
-
-  Actions:
-  - Create src/medster/utils/image_utils.py
-  - Implement DICOM → base64 PNG converter (minimal dependencies)
-  - Implement image optimizer (resize, compress)
-  - Handle ECG format conversion
-
-  Files Created:
-  - src/medster/utils/image_utils.py
-
-  ---
-  Step 4: Add Vision Primitives 🔧
-
-  Goal: Extend primitives.py with vision helpers
-
-  Actions:
-  - Add load_patient_dicom_image() primitive
-  - Add load_patient_ecg_image() primitive
-  - Add find_patient_image_files() primitive
-  - Add analyze_image_with_claude() primitive
-
-  Files Modified:
-  - src/medster/tools/analysis/primitives.py
-
-  ---
-  Step 5: Update Code Generator 🤖
-
-  Goal: Enable vision analysis through generated code
-
-  Actions:
-  - Update PRIMITIVES_DOC to advertise vision primitives
-  - Add vision primitives to SAFE_GLOBALS
-  - Update system prompt for vision-aware code generation
-
-  Files Modified:
-  - src/medster/tools/analysis/code_generator.py
-
-  ---
-  Step 6: Add Vision Support to LLM 👁️
-
-  Goal: Enable Claude vision API calls
-
-  Actions:
-  - Modify call_llm() to accept images parameter
-  - Handle base64 image encoding in API call
-  - Support multi-image requests
-
-  Files Modified:
-  - src/medster/model.py
-
-  ---
-  Step 7: Update Agent Prompts 📝
-
-  Goal: Inform agent about vision capabilities
-
-  Actions:
-  - Update PLANNING_SYSTEM_PROMPT with vision analysis examples
-  - Update ACTION_SYSTEM_PROMPT with vision primitives info
-
-  Files Modified:
-  - src/medster/prompts.py
-
-  ---
-  Step 8: Update Documentation 📚
-
-  Goal: Document new multimodal capabilities
-
-  Actions:
-  - Add multimodal section to CLAUDE.md
-  - Document vision primitives
-  - Provide example queries
-
-  Files Modified:
-  - CLAUDE.md
-
-  ---
-  Step 9: Test End-to-End ✅
-
-  Goal: Validate multimodal workflow
-
-  Actions:
-  - Test query: "Analyze stroke patients with brain MRI findings"
-  - Verify image loading, conversion, and analysis
-  - Check token usage and response quality
+**Usage:** Read these files on-demand when you need specific information about architecture, implementation details, or historical context. This keeps the main CLAUDE.md file focused on essential development guidance.
