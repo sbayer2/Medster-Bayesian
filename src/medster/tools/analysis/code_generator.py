@@ -6,7 +6,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 import traceback
 import logging
-from datetime import datetime
+import datetime  # Import full module for sandbox
+from collections import Counter, defaultdict  # Import for sandbox
 
 from medster.tools.analysis.primitives import (
     get_patients,
@@ -124,6 +125,11 @@ def create_sandbox_globals(patient_limit: int) -> dict:
         "ord": ord,  # For hash-based pseudo-random selection
         "chr": chr,  # Inverse of ord, useful for string operations
 
+        # Standard library modules (safe for medical analysis)
+        "datetime": datetime,  # For date/age calculations
+        "Counter": Counter,  # For frequency counting
+        "defaultdict": defaultdict,  # For grouped aggregations
+
         # Exception handling
         "Exception": Exception,
 
@@ -218,9 +224,9 @@ def generate_and_run_analysis(
 
         # Run the analysis
         logger.info("Executing analyze() function...")
-        start_time = datetime.now()
+        start_time = datetime.datetime.now()
         result = sandbox_locals["analyze"]()
-        elapsed = (datetime.now() - start_time).total_seconds()
+        elapsed = (datetime.datetime.now() - start_time).total_seconds()
         logger.info(f"Analysis completed in {elapsed:.2f} seconds")
 
         return {
