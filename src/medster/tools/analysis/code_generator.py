@@ -71,6 +71,32 @@ def create_sandbox_globals(patient_limit: int) -> dict:
         """Progress logging function available to generated code."""
         logger.info(message)
 
+    def extract_patient_id_from_dicom_path(dicom_path: str) -> str:
+        """
+        Extract patient ID from DICOM filename path.
+
+        Coherent dataset filenames: FirstName_LastName_UUID[DICOM_ID].dcm
+        Example: "Abe604_Frami345_b8dd1798-beef-094d-1be4-f90ee0e6b7d5[1.2.840...].dcm"
+
+        Returns: "Abe604_Frami345" (FirstName_LastName format)
+
+        Usage in generated code:
+            dicom_files = scan_dicom_directory()
+            for dicom_path in dicom_files[:5]:
+                patient_id = extract_patient_id_from_dicom_path(dicom_path)
+                image = load_dicom_image(patient_id, 0)
+        """
+        # Extract just the filename (handle both forward slash and backslash)
+        filename = dicom_path.replace('\\', '/').split('/')[-1]
+
+        # Split by underscore and take first two parts
+        parts = filename.split('_')
+        if len(parts) >= 2:
+            return f"{parts[0]}_{parts[1]}"
+        else:
+            # Fallback: return the filename without extension
+            return filename.replace('.dcm', '')
+
     return {
         # FHIR Data Primitives
         "get_patients": lambda limit=patient_limit: get_patients(limit),
@@ -95,6 +121,9 @@ def create_sandbox_globals(patient_limit: int) -> dict:
         "analyze_image_with_claude": analyze_image_with_claude,
         "analyze_ecg_for_rhythm": analyze_ecg_for_rhythm,
         "analyze_multiple_images_with_claude": analyze_multiple_images_with_claude,
+
+        # Helper Functions
+        "extract_patient_id_from_dicom_path": extract_patient_id_from_dicom_path,
 
         # Safe built-ins
         "len": len,

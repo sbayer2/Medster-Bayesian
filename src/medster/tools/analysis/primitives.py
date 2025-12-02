@@ -602,6 +602,14 @@ scan_dicom_directory() -> List[str]
     # Use this for database-wide DICOM analysis (fast - no patient iteration)
     # Example: dicom_files = scan_dicom_directory()  # Returns all 298 files
 
+extract_patient_id_from_dicom_path(dicom_path: str) -> str
+    # Extract patient ID from DICOM file path (handles Coherent dataset format)
+    # Filename format: FirstName_LastName_UUID[DICOM_ID].dcm
+    # Returns: "FirstName_LastName" (e.g., "Abe604_Frami345")
+    # Use with scan_dicom_directory() to correctly parse patient IDs
+    # Example: patient_id = extract_patient_id_from_dicom_path(dicom_files[0])
+    #          image = load_dicom_image(patient_id, 0)
+
 get_dicom_metadata_from_path(dicom_path: str) -> Dict
     # Get metadata for DICOM file from file path
     # Returns: {"modality": str, "study_description": str, "body_part": str, "dimensions": str, ...}
