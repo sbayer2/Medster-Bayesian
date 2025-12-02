@@ -358,11 +358,12 @@ def analyze_image_with_claude(image_base64: str, prompt: str) -> str:
     """
     try:
         from medster.model import call_llm
+        from medster.config import get_vision_model
 
         response = call_llm(
             prompt=prompt,
             images=[image_base64],
-            model="claude-sonnet-4.5"  # Use Sonnet 4.5 for vision analysis
+            model=get_vision_model()  # Use configured vision model (defaults to Claude)
         )
 
         # Extract text content from response
@@ -438,10 +439,11 @@ Be precise in your RHYTHM classification. Only state "Atrial Fibrillation" if yo
 
         # Get vision analysis
         from medster.model import call_llm
+        from medster.config import get_vision_model
         response = call_llm(
             prompt=prompt,
             images=[ecg_image],
-            model="claude-sonnet-4.5"  # Use Sonnet 4.5 for ECG analysis
+            model=get_vision_model()  # Use configured vision model (defaults to Claude)
         )
 
         raw_text = response.content if hasattr(response, 'content') else str(response)
@@ -530,6 +532,7 @@ def analyze_multiple_images_with_claude(images: List[str], prompt: str) -> str:
     """
     try:
         from medster.model import call_llm
+        from medster.config import get_vision_model
 
         # Filter out None values
         valid_images = [img for img in images if img]
@@ -540,7 +543,7 @@ def analyze_multiple_images_with_claude(images: List[str], prompt: str) -> str:
         response = call_llm(
             prompt=prompt,
             images=valid_images,
-            model="claude-sonnet-4.5"  # Use Sonnet 4.5 for vision analysis
+            model=get_vision_model()  # Use configured vision model (defaults to Claude)
         )
 
         # Extract text content from response

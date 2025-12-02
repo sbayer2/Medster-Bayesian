@@ -294,10 +294,17 @@ Task Plan:
         Pay special attention to filtering parameters that would help narrow down results to match the task.
         """
         try:
-            response = call_llm(prompt, model="claude-sonnet-4.5", system_prompt=get_tool_args_system_prompt(), output_schema=OptimizedToolArgs)
+            # Use configured primary model (not hardcoded) - respects .env LLM_MODEL
+            response = call_llm(prompt, system_prompt=get_tool_args_system_prompt(), output_schema=OptimizedToolArgs)
             if isinstance(response, dict):
-                return response if response else initial_args
-            return response.arguments
+                optimized_args = response if response else initial_args
+            else:
+                optimized_args = response.arguments
+
+            # Filter out None values to allow tool defaults to be used
+            # (optimizer sometimes returns None for parameters it can't determine)
+            filtered_args = {k: v for k, v in optimized_args.items() if v is not None}
+            return filtered_args if filtered_args else initial_args
         except Exception as e:
             self.logger._log(f"Argument optimization failed: {e}, using original args")
             return initial_args

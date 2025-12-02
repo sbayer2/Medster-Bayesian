@@ -72,10 +72,11 @@ def analyze_patient_ecg(
 
 Provide a detailed analysis with specific findings."""
 
+                from medster.config import get_vision_model
                 response = call_llm(
                     prompt=prompt,
                     images=[ecg_image],
-                    model="claude-sonnet-4.5"  # Use Sonnet 4.5 for vision analysis
+                    model=get_vision_model()  # Use configured vision model (defaults to Claude)
                 )
                 custom_analysis = response.content if hasattr(response, 'content') else str(response)
                 result["custom_analysis"] = custom_analysis
@@ -189,11 +190,12 @@ For each image, provide:
 
 Format your response as structured findings for each image."""
 
-        # Call Claude vision API with Sonnet 4.5 for vision analysis
+        # Call vision API with configured vision model (defaults to Claude for superior vision)
+        from medster.config import get_vision_model
         response = call_llm(
             prompt=full_prompt,
             images=base64_images,
-            model="claude-sonnet-4.5"
+            model=get_vision_model()
         )
 
         # Extract text content from response
